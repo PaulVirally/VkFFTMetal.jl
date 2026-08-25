@@ -1,0 +1,15 @@
+name = "VkFFTMetal"
+uuid = "8e2fa92a-49f5-451f-bae9-73acda6e08bc"
+authors = ["Paul Virally"]
+version = "0.1.0"
+
+[deps]
+Metal = "dde4c033-4e86-420c-a63e-0dd931031962"
+Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
+VkFFT = "65dc4606-9ae3-4b78-8734-204937373618"
+
+[compat]
+Metal = "1.10"
+Reexport = "1"
+VkFFT = "0.1"
+julia = "1.10"
