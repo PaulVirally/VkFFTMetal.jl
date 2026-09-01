@@ -1,0 +1,128 @@
+# A GitHub-hosted arm64 macOS runner exposes a paravirtualized Apple GPU, and
+# Metal.jl reports it as functional from macOS 15 on, so this job plans and
+# applies real transforms rather than only loading the package. The device is
+# virtual and upstream supports it on a best-effort basis, so treat a first
+# failure here as a question about the runner before treating it as a defect in
+# this package.
+#
+# The script it runs is VkFFT.jl's test/metal/trigger_child.jl rather than a
+# copy living here. That file is already checked out below, and its ground
+# truth is analytic, so it needs no FFTW and no reference implementation.
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "*"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  # VkFFT is not in the General registry yet, so Pkg cannot resolve the
+  # dependency in Project.toml and the workflow has to hand it a copy. The
+  # checkout step and the Pkg.develop line that use these both come out once
+  # VkFFT is registered.
+  #
+  # libvkfft is the C wrapper. There is no JLL for it yet either, so the Metal
+  # build happens here. Both refs float, so a change on either side that breaks
+  # this package shows up now rather than after the next release. Put a full 40
+  # character commit hash in to make a run reproducible. Whatever these name
+  # has to be pushed, since nothing local is visible from a runner.
+  VKFFT_JL_REPOSITORY: PaulVirally/VkFFT.jl
+  VKFFT_JL_REF: main
+  LIBVKFFT_REPOSITORY: PaulVirally/libvkfft
+  LIBVKFFT_REF: main
+
+jobs:
+  metal:
+    # macos-15 at least. Metal.jl reports the paravirtualized GPU as not
+    # functional on macOS 14, whose driver cannot do the argument submission it
+    # needs, so moving the label back would leave a job that cannot pass.
+    #
+    # Julia 1 only. VkFFT.jl's own workflow exercises the 1.10 compat floor
+    # across the whole suite.
+    name: Julia 1 - macos-15 - Metal
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check out VkFFT.jl
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.VKFFT_JL_REPOSITORY }}
+          ref: ${{ env.VKFFT_JL_REF }}
+          path: vkfft
+
+      # VkFFT is a pinned submodule of libvkfft at lib/VkFFT, and metal-cpp
+      # ships inside that same checkout at lib/VkFFT/metal-cpp. libvkfft's
+      # CMakeLists.txt checks for both by hand and fails outright when either
+      # is missing, so this checkout has to be recursive.
+      - name: Check out libvkfft
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.LIBVKFFT_REPOSITORY }}
+          ref: ${{ env.LIBVKFFT_REF }}
+          path: libvkfft
+          submodules: recursive
+
+      - name: Build the wrapper for backend 5
+        run: |
+          set -o pipefail
+          cmake -S libvkfft -B libvkfft/build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DVKFFT_BACKEND=5 \
+            -DVKFFT_WRAPPER_BUILD_TESTS=OFF
+          cmake --build libvkfft/build --parallel
+
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: "1"
+
+      - uses: julia-actions/cache@v2
+
+      # Metal is not in the package list on purpose. The arrays come through
+      # VkFFTMetal, and that is part of what the script checks.
+      - name: Resolve a project holding VkFFT and VkFFTMetal
+        run: |
+          using Pkg
+          Pkg.develop([PackageSpec(path=joinpath(ENV["GITHUB_WORKSPACE"], "vkfft")),
+                       PackageSpec(path=ENV["GITHUB_WORKSPACE"])])
+          Pkg.add(["LinearAlgebra", "Preferences", "UUIDs"])
+          Pkg.precompile()
+        shell: julia --color=yes {0}
+        env:
+          JULIA_PROJECT: ${{ runner.temp }}/metalenv
+
+      # Printed rather than asserted, so the log says whether there was a GPU
+      # before anyone starts reading the failures below. Metal is reached
+      # through VkFFTMetal because it is not a direct dependency of this
+      # environment, and `using` only takes direct dependencies.
+      - name: Report the Metal device
+        run: |
+          using VkFFTMetal
+          const Metal = VkFFTMetal.Metal
+          println("Metal.functional() = ", Metal.functional())
+          Metal.versioninfo()
+        shell: julia --color=yes {0}
+        env:
+          JULIA_PROJECT: ${{ runner.temp }}/metalenv
+
+      # trigger_child.jl sets the libvkfft_path preference from
+      # VKFFT_METAL_WRAPPER_PATH itself, before it loads VkFFT, and exits
+      # nonzero when any of its checks fail.
+      - name: Run VkFFT.jl's trigger gate
+        run: |
+          set -o pipefail
+          julia --color=yes --startup-file=no --project="${{ runner.temp }}/metalenv" \
+            vkfft/test/metal/trigger_child.jl
+        env:
+          VKFFT_METAL_WRAPPER_PATH: ${{ github.workspace }}/libvkfft/build/libvkfft.dylib
