@@ -53,10 +53,10 @@ jobs:
     name: Julia 1 - macos-15 - Metal
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Check out VkFFT.jl
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           repository: ${{ env.VKFFT_JL_REPOSITORY }}
           ref: ${{ env.VKFFT_JL_REF }}
@@ -67,7 +67,7 @@ jobs:
       # CMakeLists.txt checks for both by hand and fails outright when either
       # is missing, so this checkout has to be recursive.
       - name: Check out libvkfft
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           repository: ${{ env.LIBVKFFT_REPOSITORY }}
           ref: ${{ env.LIBVKFFT_REF }}
