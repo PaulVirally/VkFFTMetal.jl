@@ -87,7 +87,7 @@ jobs:
         with:
           version: "1"
 
-      - uses: julia-actions/cache@v2
+      - uses: julia-actions/cache@v3
 
       # Metal is not in the package list on purpose. The arrays come through
       # VkFFTMetal, and that is part of what the script checks.
