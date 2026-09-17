@@ -6,21 +6,13 @@ re-exports VkFFT.jl.
 
 ## Setup
 
-TODO(jll): install instructions pending VkFFT_Metal_jll registration. Until
-then, the libvkfft_path preference is the only way in.
-
-`Pkg.add("VkFFTMetal")` installs the Julia side. VkFFT.jl calls
-[a small C wrapper](https://github.com/PaulVirally/libvkfft) around VkFFT, and
-there is no JLL for it yet, so build it yourself and point the package at the
-shared library it produces:
-
 ```julia
-using Preferences, VkFFT
-set_preferences!(VkFFT, "libvkfft_path" => "/path/to/libvkfft.dylib")
+Pkg.add("VkFFTMetal")
 ```
 
-Build it with `-DVKFFT_BACKEND=5`. That build needs macOS and the `metal-cpp`
-headers, which come with the sources.
+That pulls in VkFFT_Metal_jll, which ships the prebuilt wrapper.To build the
+wrapper yourself, see the [developer
+docs](https://paulvirally.github.io/VkFFT.jl/stable/building/).
 
 ## Use
 
@@ -37,10 +29,10 @@ x2 = inv(p) * y          # normalized inverse, 1/N applied inside the kernel
 
 ## No Float64
 
-Metal has no double precision, so you get `Float32`, `ComplexF32` and the half
-precisions. Metal.jl already refuses to allocate an `MtlArray` of `Float64` or
-`ComplexF64`, and a plan asked for one anyway says so instead of returning a
-VkFFT error code. Run double-precision transforms on a CUDA or OpenCL device.
+Metal has no double precision (because the Apple Silicon hardware does not
+support these calculations), so you can only use `Float32`, `ComplexF32` and the
+half precisions `Float16`, `ComplexF16` (the latter is only supported on macOS
+14 and later).
 
 ## Do not plan inside an autorelease pool
 
@@ -54,5 +46,5 @@ fine and holds a pool of its own. This is an upstream bug with a fix pending in
 ## Documentation
 
 The entry points, the transform families, tuning and the per-backend capability
-matrix are in the
-[VkFFT.jl documentation](https://paulvirally.github.io/VkFFT.jl/stable/).
+matrix can be found in the [VkFFT.jl
+documentation](https://paulvirally.github.io/VkFFT.jl/stable/).

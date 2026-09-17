@@ -4,6 +4,11 @@ using Metal
 using Reexport
 @reexport using VkFFT
 
+# Nothing here refers to a name from the JLL, but VkFFTMetalExt lists it as a
+# trigger alongside Metal, and a trigger has to be loaded rather than merely
+# listed as a dependency for the extension to activate.
+import VkFFT_Metal_jll
+
 """
     __init__()
 

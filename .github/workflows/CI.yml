@@ -32,8 +32,8 @@ env:
   # checkout step and the Pkg.develop line that use these both come out once
   # VkFFT is registered.
   #
-  # libvkfft is the C wrapper. There is no JLL for it yet either, so the Metal
-  # build happens here. Both refs float, so a change on either side that breaks
+  # libvkfft is the C wrapper, built here rather than taken from the pinned
+  # VkFFT_Metal_jll. Both refs float, so a change on either side that breaks
   # this package shows up now rather than after the next release. Put a full 40
   # character commit hash in to make a run reproducible. Whatever these name
   # has to be pushed, since nothing local is visible from a runner.
