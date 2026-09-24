@@ -12,6 +12,13 @@ VkFFT_Metal_jll = "042e462d-e49b-5371-a6d8-d140e9b49131"
 [compat]
 Metal = "1.10"
 Reexport = "1"
+Test = "1"
 VkFFT = "0.1"
 VkFFT_Metal_jll = "0.1"
 julia = "1.10"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
